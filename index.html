@@ -1,0 +1,954 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Smart Passport Studio Batch</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Face Detection & Alignment CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api/dist/face-api.js"></script>
+  <!-- JSZip for Batch Export -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+
+  <style>
+    :root {
+      --primary: #0284c7;
+      --primary-hover: #0369a1;
+      --adjust-panel-height: 200px;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      transition: padding-bottom 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    html, body {
+      overflow-x: hidden;
+    }
+    .photo-card {
+      transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+    }
+    .photo-card.active-editing {
+      border-color: var(--primary) !important;
+      box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.25), 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+      transform: translateY(-2px);
+    }
+    .passport-canvas {
+      touch-action: none;
+      cursor: grab;
+    }
+    .passport-canvas:active {
+      cursor: grabbing;
+    }
+    .passport-canvas.all-locked {
+      cursor: default;
+    }
+    input[type="range"] {
+      accent-color: var(--primary);
+    }
+    body.panel-open {
+      padding-bottom: calc(var(--adjust-panel-height) + 32px);
+    }
+    @keyframes pulse-dot {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(0.85); }
+    }
+    .pulse-dot {
+      animation: pulse-dot 1.2s infinite ease-in-out;
+    }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-900 min-h-screen antialiased flex flex-col items-center">
+
+<div class="w-full max-w-6xl px-4 py-6 md:py-8">
+  <!-- Top Branding -->
+  <header class="text-center mb-6">
+    <div class="inline-flex items-center gap-2 bg-sky-100 text-sky-800 text-xs font-semibold px-3 py-1 rounded-full mb-2">
+      <span class="w-2 h-2 rounded-full bg-sky-600 pulse-dot"></span> AI-Powered Studio
+    </div>
+    <h1 class="text-2xl md:text-3xl font-extrabold text-slate-900 tracking-tight">Smart Passport Studio</h1>
+    <p class="text-sm md:text-base text-slate-500 mt-1 max-w-xl mx-auto">
+      Automatic eye-line alignment, official biometric head proportions, and instant multi-image export.
+    </p>
+  </header>
+
+  <!-- Global Settings Card -->
+  <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 md:p-6 mb-6">
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 items-end">
+      <!-- Upload Input -->
+      <div>
+        <label class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5" for="uploadInput">
+          Upload Image(s)
+        </label>
+        <input type="file" id="uploadInput" accept="image/*" multiple disabled
+          class="block w-full text-sm text-slate-600 file:mr-3 file:py-2 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-sky-50 file:text-sky-700 hover:file:bg-sky-100 file:cursor-pointer border border-slate-200 rounded-xl cursor-pointer bg-slate-50 focus:outline-none p-1" />
+      </div>
+
+      <!-- Preset Standard -->
+      <div>
+        <label class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5" for="presetSelect">
+          Passport Standard
+        </label>
+        <select id="presetSelect" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-800 font-medium focus:ring-2 focus:ring-sky-500 focus:outline-none">
+          <option value="us">US Visa / India Passport (2x2 in, 600x600 px)</option>
+          <option value="iso">UK / Schengen / ISO (35x45 mm, 413x531 px)</option>
+          <option value="portrait34">Portrait Standard (3:4 Ratio, 600x800 px)</option>
+          <option value="custom">Custom Dimensions (px)...</option>
+        </select>
+      </div>
+
+      <!-- Global Checkboxes -->
+      <div class="flex items-center h-10 gap-4">
+        <label class="inline-flex items-center gap-2 cursor-pointer select-none">
+          <input type="checkbox" id="autoDeskewCheck" checked class="w-4 h-4 rounded text-sky-600 focus:ring-sky-500 border-slate-300" />
+          <span class="text-sm font-medium text-slate-700">Auto Tilt Alignment</span>
+        </label>
+      </div>
+    </div>
+
+    <!-- Custom Dimension Controls -->
+    <div id="customDimensionRow" class="hidden mt-4 pt-4 border-t border-slate-100 grid grid-cols-2 md:grid-cols-4 gap-3 items-center">
+      <div>
+        <label class="block text-xs font-medium text-slate-500 mb-1" for="customWidthInput">Width (px)</label>
+        <input type="number" id="customWidthInput" value="600" min="100" max="4000" class="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-sm font-semibold text-slate-800 focus:ring-2 focus:ring-sky-500 focus:outline-none" />
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-slate-500 mb-1" for="customHeightInput">Height (px)</label>
+        <input type="number" id="customHeightInput" value="600" min="100" max="4000" class="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-sm font-semibold text-slate-800 focus:ring-2 focus:ring-sky-500 focus:outline-none" />
+      </div>
+      <div class="col-span-2 flex items-end">
+        <button id="applyCustomSizeBtn" class="w-full bg-slate-800 hover:bg-slate-900 text-white text-xs font-semibold py-2 px-4 rounded-lg transition-colors">
+          Apply Custom Dimensions
+        </button>
+      </div>
+    </div>
+
+    <!-- Global Status Indicator -->
+    <div class="mt-4 pt-3 border-t border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-2 text-xs">
+      <div class="flex items-center gap-2" id="statusContainer">
+        <div id="statusSpinner" class="w-3.5 h-3.5 border-2 border-sky-600 border-t-transparent rounded-full animate-spin"></div>
+        <span id="statusBar" class="font-medium text-sky-700">Initializing AI face detection models...</span>
+      </div>
+      <div id="progressBarContainer" class="hidden w-full md:w-64 bg-slate-100 rounded-full h-2 overflow-hidden">
+        <div id="progressBarFill" class="bg-sky-600 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Action Header -->
+  <div class="flex items-center justify-between gap-4 mb-4 flex-wrap">
+    <div>
+      <h2 class="text-base font-bold text-slate-800">Passport Photo Results</h2>
+      <p id="batchCountMeta" class="text-xs text-slate-500 font-normal">No images loaded yet</p>
+    </div>
+
+    <!-- Global Actions -->
+    <div class="flex items-center gap-2">
+      <button id="resetAllBtn" style="display: none;" class="inline-flex items-center gap-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs md:text-sm font-semibold py-2 px-3 md:px-4 rounded-xl shadow-sm transition-all transform active:scale-95" title="Reset all images back to initial AI crop">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+        </svg>
+        <span>Reset All to Default</span>
+      </button>
+
+      <button id="batchZipBtn" style="display: none;" class="inline-flex items-center gap-2 bg-slate-900 hover:bg-slate-800 text-white text-xs md:text-sm font-semibold py-2 px-4 rounded-xl shadow-sm transition-all transform active:scale-95">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+        </svg>
+        <span>Download All (ZIP)</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Empty State -->
+  <div id="emptyPlaceholder" class="border-2 border-dashed border-slate-200 rounded-2xl p-12 text-center bg-white flex flex-col items-center justify-center">
+    <div class="w-14 h-14 bg-sky-50 text-sky-600 rounded-2xl flex items-center justify-center mb-3">
+      <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+      </svg>
+    </div>
+    <h3 class="text-sm font-bold text-slate-800">No passport photos processed</h3>
+    <p class="text-xs text-slate-400 mt-1 max-w-sm">
+      Select single or multiple portrait photos above. Automatic face alignment and biometric proportions will apply instantly.
+    </p>
+  </div>
+
+  <!-- Results Gallery -->
+  <div id="galleryGrid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-5"></div>
+</div>
+
+<!-- Docked Single-Slider Drawer with Individual Tool Lock -->
+<div id="adjustPanel" class="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-slate-200 shadow-2xl z-50 transform translate-y-full transition-transform duration-300 ease-out">
+  <div class="max-w-2xl mx-auto px-4 py-3 sm:py-4 flex flex-col gap-2.5">
+    <!-- Panel Header -->
+    <div class="flex items-center justify-between gap-2 border-b border-slate-100 pb-2">
+      <div class="flex items-center gap-2 overflow-hidden">
+        <span class="inline-block w-2 h-2 rounded-full bg-sky-500"></span>
+        <span id="panelTargetTitle" class="text-xs sm:text-sm font-bold text-slate-800 truncate">Adjusting Image</span>
+      </div>
+
+      <div class="flex items-center gap-2">
+        <button id="resetSingleBtn" class="inline-flex items-center gap-1 bg-slate-100 hover:bg-slate-200 text-slate-700 py-1 px-2.5 rounded-lg text-xs font-semibold transition-colors" title="Reset this image to default auto crop">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+          </svg>
+          <span>Reset</span>
+        </button>
+
+        <button id="closePanelBtn" class="text-slate-400 hover:text-slate-700 p-1 rounded-md transition-colors" title="Close Panel">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Feature Tabs -->
+    <div class="grid grid-cols-4 gap-1.5 bg-slate-100 p-1 rounded-xl">
+      <button class="tab-btn py-1.5 px-2 rounded-lg text-xs font-semibold transition-all bg-white text-sky-700 shadow-sm" data-tab="scale">Zoom</button>
+      <button class="tab-btn py-1.5 px-2 rounded-lg text-xs font-medium text-slate-600 hover:text-slate-900 transition-all" data-tab="offsetY">Vertical</button>
+      <button class="tab-btn py-1.5 px-2 rounded-lg text-xs font-medium text-slate-600 hover:text-slate-900 transition-all" data-tab="offsetX">Horizontal</button>
+      <button class="tab-btn py-1.5 px-2 rounded-lg text-xs font-medium text-slate-600 hover:text-slate-900 transition-all" data-tab="rotDeg">Tilt</button>
+    </div>
+
+    <!-- Slider Row -->
+    <div class="flex items-center gap-2 sm:gap-3">
+      <button id="stepDecBtn" class="w-10 h-10 flex-shrink-0 flex items-center justify-center bg-slate-100 hover:bg-slate-200 active:bg-slate-300 text-slate-800 font-bold text-base rounded-xl border border-slate-200 disabled:opacity-40 disabled:cursor-not-allowed transition-colors select-none" title="Decrease">-</button>
+
+      <div class="flex-1 flex flex-col justify-center gap-1">
+        <div class="flex justify-between text-xs font-semibold text-slate-600">
+          <span id="activeParamLabel">Zoom</span>
+          <span id="activeParamVal" class="text-sky-700 font-bold">1.00x</span>
+        </div>
+        <input type="range" id="activeSlider" class="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed" />
+      </div>
+
+      <button id="stepIncBtn" class="w-10 h-10 flex-shrink-0 flex items-center justify-center bg-slate-100 hover:bg-slate-200 active:bg-slate-300 text-slate-800 font-bold text-base rounded-xl border border-slate-200 disabled:opacity-40 disabled:cursor-not-allowed transition-colors select-none" title="Increase">+</button>
+
+      <button id="toolLockBtn" class="flex-shrink-0 flex items-center gap-1.5 py-2 px-3 text-xs font-bold rounded-xl border transition-colors select-none bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100" title="Lock or unlock this specific adjustment tool">
+        <span id="toolLockIcon">🔓</span>
+        <span id="toolLockText">Unlocked</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+  const MODEL_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model/';
+
+  // Standard official passport biometric ratios:
+  // Head occupies ~68-72% of photo height. Top of hair has headroom, top of shoulders visible.
+  const PRESETS = {
+    us: {
+      w: 600,
+      h: 600,
+      eyeYFactor: 0.45,
+      headRatio: 0.68,
+      label: "US Visa / India Passport (2x2 in, 600x600 px)"
+    },
+    iso: {
+      w: 413,
+      h: 531,
+      eyeYFactor: 0.42,
+      headRatio: 0.70,
+      label: "UK / Schengen / ISO (35x45 mm, 413x531 px)"
+    },
+    portrait34: {
+      w: 600,
+      h: 800,
+      eyeYFactor: 0.40,
+      headRatio: 0.65,
+      label: "Portrait (3:4, 600x800 px)"
+    },
+    custom: {
+      w: 600,
+      h: 600,
+      eyeYFactor: 0.44,
+      headRatio: 0.68,
+      label: "Custom Standard"
+    }
+  };
+
+  const TAB_CONFIGS = {
+    scale: { label: "Zoom / Scale", min: 0.4, max: 2.2, step: 0.02, unit: "x", precision: 2 },
+    offsetY: { label: "Vertical Headroom", min: -250, max: 250, step: 2, unit: "px", precision: 0 },
+    offsetX: { label: "Horizontal Center", min: -200, max: 200, step: 2, unit: "px", precision: 0 },
+    rotDeg: { label: "Fine Tilt Angle", min: -30, max: 30, step: 0.5, unit: "°", precision: 1 }
+  };
+
+  // Global DOM Elements
+  const uploadInput = document.getElementById('uploadInput');
+  const presetSelect = document.getElementById('presetSelect');
+  const autoDeskewCheck = document.getElementById('autoDeskewCheck');
+  const customDimensionRow = document.getElementById('customDimensionRow');
+  const customWidthInput = document.getElementById('customWidthInput');
+  const customHeightInput = document.getElementById('customHeightInput');
+  const applyCustomSizeBtn = document.getElementById('applyCustomSizeBtn');
+  const statusBar = document.getElementById('statusBar');
+  const statusSpinner = document.getElementById('statusSpinner');
+  const progressBarContainer = document.getElementById('progressBarContainer');
+  const progressBarFill = document.getElementById('progressBarFill');
+  const batchCountMeta = document.getElementById('batchCountMeta');
+  const resetAllBtn = document.getElementById('resetAllBtn');
+  const batchZipBtn = document.getElementById('batchZipBtn');
+  const emptyPlaceholder = document.getElementById('emptyPlaceholder');
+  const galleryGrid = document.getElementById('galleryGrid');
+
+  // Bottom Adjustment Panel Elements
+  const adjustPanel = document.getElementById('adjustPanel');
+  const panelTargetTitle = document.getElementById('panelTargetTitle');
+  const closePanelBtn = document.getElementById('closePanelBtn');
+  const resetSingleBtn = document.getElementById('resetSingleBtn');
+  const tabButtons = document.querySelectorAll('.tab-btn');
+  const activeSlider = document.getElementById('activeSlider');
+  const activeParamLabel = document.getElementById('activeParamLabel');
+  const activeParamVal = document.getElementById('activeParamVal');
+  const stepDecBtn = document.getElementById('stepDecBtn');
+  const stepIncBtn = document.getElementById('stepIncBtn');
+  const toolLockBtn = document.getElementById('toolLockBtn');
+  const toolLockIcon = document.getElementById('toolLockIcon');
+  const toolLockText = document.getElementById('toolLockText');
+
+  let activeItem = null;
+  let currentTab = 'scale';
+  const items = [];
+
+  async function loadModels() {
+    try {
+      await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
+      await faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL);
+      statusBar.innerText = "AI models loaded. Ready for photo upload.";
+      statusSpinner.classList.add('hidden');
+      uploadInput.disabled = false;
+    } catch (err) {
+      console.error(err);
+      statusBar.innerText = "Error loading AI models. Please check your internet connection.";
+      statusSpinner.classList.add('hidden');
+    }
+  }
+  loadModels();
+
+  uploadInput.addEventListener('change', async (e) => {
+    const files = Array.from(e.target.files);
+    if (!files.length) return;
+
+    closeAdjustPanel();
+    galleryGrid.innerHTML = '';
+    items.length = 0;
+    emptyPlaceholder.style.display = 'none';
+    batchZipBtn.style.display = 'none';
+    resetAllBtn.style.display = 'none';
+
+    progressBarContainer.classList.remove('hidden');
+    progressBarFill.style.width = '0%';
+    statusSpinner.classList.remove('hidden');
+
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      const progressPercent = Math.round(((i) / files.length) * 100);
+      progressBarFill.style.width = `${progressPercent}%`;
+      statusBar.innerText = `Processing photo ${i + 1} of ${files.length} (${file.name})...`;
+
+      await processUploadedFile(file, i);
+    }
+
+    progressBarFill.style.width = '100%';
+    setTimeout(() => {
+      progressBarContainer.classList.add('hidden');
+      statusSpinner.classList.add('hidden');
+    }, 400);
+
+    statusBar.innerText = `Processed ${items.length} photo(s) successfully.`;
+    batchCountMeta.innerText = `${items.length} passport photo(s) ready`;
+    batchZipBtn.style.display = items.length > 0 ? 'inline-flex' : 'none';
+    resetAllBtn.style.display = items.length > 0 ? 'inline-flex' : 'none';
+  });
+
+  async function processUploadedFile(file, index) {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const img = new Image();
+        img.onload = async () => {
+          const item = {
+            id: index,
+            fileName: file.name,
+            imgElement: img,
+            canvas: null,
+            cardElement: null,
+            scale: 1.0,
+            offsetX: 0,
+            offsetY: 0,
+            rotDeg: 0,
+            toolLocks: { scale: false, offsetY: false, offsetX: false, rotDeg: false },
+            detectedFaces: [],
+            detectedTiltAngle: 0
+          };
+
+          try {
+            const detections = await faceapi
+              .detectAllFaces(img, new faceapi.TinyFaceDetectorOptions({ scoreThreshold: 0.45 }))
+              .withFaceLandmarks();
+            item.detectedFaces = detections || [];
+          } catch (err) {
+            console.warn("Face detection fallback", err);
+            item.detectedFaces = [];
+          }
+
+          createCardUI(item);
+          items.push(item);
+          renderCard(item);
+          resolve();
+        };
+        img.src = ev.target.result;
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  function getEyeCenter(points) {
+    const sum = points.reduce((acc, p) => ({ x: acc.x + p.x, y: acc.y + p.y }), { x: 0, y: 0 });
+    return { x: sum.x / points.length, y: sum.y / points.length };
+  }
+
+  function createCardUI(item) {
+    const card = document.createElement('div');
+    card.className = 'photo-card bg-white border-2 border-slate-200 rounded-2xl p-3 flex flex-col items-center relative shadow-sm';
+    item.cardElement = card;
+
+    const canvasWrap = document.createElement('div');
+    canvasWrap.className = 'w-full flex items-center justify-center p-1 relative rounded-xl overflow-hidden bg-slate-100/50 mb-3';
+
+    const canvas = document.createElement('canvas');
+    canvas.className = 'passport-canvas w-full max-w-[240px] h-auto rounded-lg shadow-sm border border-slate-200/80 bg-white';
+    item.canvas = canvas;
+    canvasWrap.appendChild(canvas);
+
+    const footer = document.createElement('div');
+    footer.className = 'w-full flex flex-col gap-2';
+
+    const metaRow = document.createElement('div');
+    metaRow.className = 'flex items-center justify-between text-xs text-slate-500 px-1';
+
+    const title = document.createElement('span');
+    title.className = 'font-semibold text-slate-700 truncate max-w-[150px]';
+    title.innerText = item.fileName;
+
+    const badge = document.createElement('span');
+    badge.className = 'text-[10px] font-bold px-1.5 py-0.5 rounded bg-slate-100 text-slate-600';
+    badge.innerText = item.detectedFaces.length > 0 ? 'AI Centered' : 'Manual Crop';
+
+    metaRow.appendChild(title);
+    metaRow.appendChild(badge);
+
+    const btnRow = document.createElement('div');
+    btnRow.className = 'grid grid-cols-2 gap-2 mt-1';
+
+    const downloadBtn = document.createElement('button');
+    downloadBtn.className = 'flex items-center justify-center gap-1.5 py-2 px-3 bg-sky-600 hover:bg-sky-700 active:bg-sky-800 text-white rounded-xl text-xs font-semibold transition-colors shadow-sm';
+    downloadBtn.innerHTML = `
+      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+      </svg>
+      <span>Download</span>
+    `;
+    downloadBtn.onclick = () => downloadSingleImage(item);
+
+    const adjustBtn = document.createElement('button');
+    adjustBtn.className = 'flex items-center justify-center gap-1.5 py-2 px-3 bg-slate-100 hover:bg-slate-200 active:bg-slate-300 text-slate-700 rounded-xl text-xs font-semibold transition-colors';
+    adjustBtn.innerHTML = `
+      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/>
+      </svg>
+      <span>Adjust</span>
+    `;
+    adjustBtn.onclick = () => openAdjustPanel(item);
+
+    btnRow.appendChild(downloadBtn);
+    btnRow.appendChild(adjustBtn);
+
+    footer.appendChild(metaRow);
+    footer.appendChild(btnRow);
+
+    card.appendChild(canvasWrap);
+    card.appendChild(footer);
+    galleryGrid.appendChild(card);
+
+    attachCanvasGestures(item);
+  }
+
+  function getCurrentPreset() {
+    const selected = presetSelect.value;
+    if (selected === 'custom') {
+      const cw = Math.max(100, parseInt(customWidthInput.value, 10) || 600);
+      const ch = Math.max(100, parseInt(customHeightInput.value, 10) || 600);
+      return { w: cw, h: ch, eyeYFactor: 0.44, headRatio: 0.68, label: `Custom (${cw}x${ch} px)` };
+    }
+    return PRESETS[selected];
+  }
+
+  function renderCard(item) {
+    const preset = getCurrentPreset();
+    const canvas = item.canvas;
+    canvas.width = preset.w;
+    canvas.height = preset.h;
+
+    const ctx = canvas.getContext('2d');
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+    ctx.clearRect(0, 0, preset.w, preset.h);
+
+    let eyeMidX = item.imgElement.naturalWidth / 2;
+    let eyeMidY = item.imgElement.naturalHeight * 0.4;
+    let fullHeadHeight = item.imgElement.naturalHeight * 0.55;
+    item.detectedTiltAngle = 0;
+
+    if (item.detectedFaces && item.detectedFaces.length > 0) {
+      const face = item.detectedFaces[0];
+      const landmarks = face.landmarks;
+      const leftEye = getEyeCenter(landmarks.getLeftEye());
+      const rightEye = getEyeCenter(landmarks.getRightEye());
+
+      eyeMidX = (leftEye.x + rightEye.x) / 2;
+      eyeMidY = (leftEye.y + rightEye.y) / 2;
+
+      // Jaw landmark 8 is the bottom of the chin
+      const jaw = landmarks.getJawOutline();
+      const chinY = jaw[8] ? jaw[8].y : face.detection.box.bottom;
+      
+      // Eye-to-chin distance is anatomically ~45% of total head height (crown to chin)
+      const eyeToChinDist = Math.max(20, chinY - eyeMidY);
+      fullHeadHeight = eyeToChinDist / 0.45;
+
+      if (autoDeskewCheck.checked) {
+        item.detectedTiltAngle = Math.atan2(rightEye.y - leftEye.y, rightEye.x - leftEye.x);
+      }
+    }
+
+    const userRotRad = (item.rotDeg * Math.PI) / 180;
+    
+    // Scale so full head occupies preset.headRatio (68-72%) of the frame height
+    const targetHeadHeightInCanvas = preset.h * preset.headRatio * item.scale;
+    const scale = targetHeadHeightInCanvas / fullHeadHeight;
+
+    const targetEyeX = (preset.w / 2) + item.offsetX;
+    const targetEyeY = (preset.h * preset.eyeYFactor) + item.offsetY;
+    const totalRotation = -item.detectedTiltAngle + userRotRad;
+
+    ctx.save();
+    ctx.translate(targetEyeX, targetEyeY);
+    ctx.scale(scale, scale);
+    ctx.rotate(totalRotation);
+    ctx.translate(-eyeMidX, -eyeMidY);
+
+    ctx.drawImage(item.imgElement, 0, 0);
+    ctx.restore();
+  }
+
+  presetSelect.addEventListener('change', () => {
+    if (presetSelect.value === 'custom') {
+      customDimensionRow.classList.remove('hidden');
+    } else {
+      customDimensionRow.classList.add('hidden');
+      items.forEach(renderCard);
+    }
+  });
+
+  applyCustomSizeBtn.addEventListener('click', () => {
+    items.forEach(renderCard);
+    statusBar.innerText = `Applied custom standard (${customWidthInput.value}x${customHeightInput.value} px).`;
+  });
+
+  autoDeskewCheck.addEventListener('change', () => {
+    items.forEach(renderCard);
+  });
+
+  // Gestures (Touch, Mouse Drag, Mouse Wheel)
+  function attachCanvasGestures(item) {
+    const canvas = item.canvas;
+    let isDragging = false;
+    let startX = 0, startY = 0;
+    let initialDist = 0;
+    let initialAngle = 0;
+    let initialScaleVal = 1.0;
+    let initialRotVal = 0;
+
+    const getRatio = () => canvas.width / canvas.getBoundingClientRect().width;
+    const getDist = (t1, t2) => Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
+    const getAngle = (t1, t2) => Math.atan2(t2.clientY - t1.clientY, t2.clientX - t1.clientX) * (180 / Math.PI);
+
+    canvas.addEventListener('mousedown', (e) => {
+      if (item.toolLocks.offsetX && item.toolLocks.offsetY) return;
+      isDragging = true;
+      startX = e.clientX;
+      startY = e.clientY;
+    });
+
+    window.addEventListener('mousemove', (e) => {
+      if (!isDragging) return;
+      const ratio = getRatio();
+      let changed = false;
+
+      if (!item.toolLocks.offsetX) {
+        item.offsetX += (e.clientX - startX) * ratio;
+        item.offsetX = Math.max(TAB_CONFIGS.offsetX.min, Math.min(TAB_CONFIGS.offsetX.max, item.offsetX));
+        changed = true;
+      }
+
+      if (!item.toolLocks.offsetY) {
+        item.offsetY += (e.clientY - startY) * ratio;
+        item.offsetY = Math.max(TAB_CONFIGS.offsetY.min, Math.min(TAB_CONFIGS.offsetY.max, item.offsetY));
+        changed = true;
+      }
+
+      startX = e.clientX;
+      startY = e.clientY;
+
+      if (changed) {
+        renderCard(item);
+        if (activeItem === item) updateSliderUI();
+      }
+    });
+
+    window.addEventListener('mouseup', () => {
+      isDragging = false;
+    });
+
+    // Wheel: Alt + Wheel = Rotate | Wheel = Zoom
+    canvas.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      let changed = false;
+
+      if (e.altKey) {
+        if (!item.toolLocks.rotDeg) {
+          const rotDelta = (e.deltaY > 0 ? -1 : 1) * 0.5;
+          item.rotDeg = Math.max(TAB_CONFIGS.rotDeg.min, Math.min(TAB_CONFIGS.rotDeg.max, item.rotDeg + rotDelta));
+          changed = true;
+        }
+      } else {
+        if (!item.toolLocks.scale) {
+          const delta = (e.deltaY > 0 ? -1 : 1) * 0.05;
+          item.scale = Math.max(TAB_CONFIGS.scale.min, Math.min(TAB_CONFIGS.scale.max, item.scale + delta));
+          changed = true;
+        }
+      }
+
+      if (changed) {
+        renderCard(item);
+        if (activeItem === item) updateSliderUI();
+      }
+    }, { passive: false });
+
+    // Touch support (1 finger pan, 2 fingers pinch-zoom & twist-tilt)
+    canvas.addEventListener('touchstart', (e) => {
+      if (e.touches.length === 1) {
+        if (item.toolLocks.offsetX && item.toolLocks.offsetY) return;
+        isDragging = true;
+        startX = e.touches[0].clientX;
+        startY = e.touches[0].clientY;
+      } else if (e.touches.length === 2) {
+        isDragging = false;
+        initialDist = getDist(e.touches[0], e.touches[1]);
+        initialAngle = getAngle(e.touches[0], e.touches[1]);
+        initialScaleVal = item.scale;
+        initialRotVal = item.rotDeg;
+      }
+    }, { passive: false });
+
+    canvas.addEventListener('touchmove', (e) => {
+      e.preventDefault();
+      let changed = false;
+
+      if (e.touches.length === 1 && isDragging) {
+        const ratio = getRatio();
+        if (!item.toolLocks.offsetX) {
+          item.offsetX += (e.touches[0].clientX - startX) * ratio;
+          item.offsetX = Math.max(TAB_CONFIGS.offsetX.min, Math.min(TAB_CONFIGS.offsetX.max, item.offsetX));
+          changed = true;
+        }
+        if (!item.toolLocks.offsetY) {
+          item.offsetY += (e.touches[0].clientY - startY) * ratio;
+          item.offsetY = Math.max(TAB_CONFIGS.offsetY.min, Math.min(TAB_CONFIGS.offsetY.max, item.offsetY));
+          changed = true;
+        }
+        startX = e.touches[0].clientX;
+        startY = e.touches[0].clientY;
+      } else if (e.touches.length === 2) {
+        if (!item.toolLocks.scale && initialDist > 0) {
+          const currentDist = getDist(e.touches[0], e.touches[1]);
+          const newScale = initialScaleVal * (currentDist / initialDist);
+          item.scale = Math.max(TAB_CONFIGS.scale.min, Math.min(TAB_CONFIGS.scale.max, newScale));
+          changed = true;
+        }
+
+        if (!item.toolLocks.rotDeg) {
+          const currentAngle = getAngle(e.touches[0], e.touches[1]);
+          const angleDiff = currentAngle - initialAngle;
+          item.rotDeg = Math.max(TAB_CONFIGS.rotDeg.min, Math.min(TAB_CONFIGS.rotDeg.max, initialRotVal + angleDiff));
+          changed = true;
+        }
+      }
+
+      if (changed) {
+        renderCard(item);
+        if (activeItem === item) updateSliderUI();
+      }
+    }, { passive: false });
+
+    canvas.addEventListener('touchend', (e) => {
+      if (e.touches.length === 0) isDragging = false;
+    });
+  }
+
+  // Keyboard shortcuts
+  window.addEventListener('keydown', (e) => {
+    if (!activeItem) return;
+    if (['INPUT', 'SELECT', 'TEXTAREA'].includes(document.activeElement.tagName)) return;
+
+    let handled = false;
+    const step = e.shiftKey ? 10 : 2;
+
+    switch (e.key) {
+      case 'ArrowUp':
+        if (!activeItem.toolLocks.offsetY) {
+          activeItem.offsetY = Math.max(TAB_CONFIGS.offsetY.min, activeItem.offsetY - step);
+          handled = true;
+        }
+        break;
+      case 'ArrowDown':
+        if (!activeItem.toolLocks.offsetY) {
+          activeItem.offsetY = Math.min(TAB_CONFIGS.offsetY.max, activeItem.offsetY + step);
+          handled = true;
+        }
+        break;
+      case 'ArrowLeft':
+        if (!activeItem.toolLocks.offsetX) {
+          activeItem.offsetX = Math.max(TAB_CONFIGS.offsetX.min, activeItem.offsetX - step);
+          handled = true;
+        }
+        break;
+      case 'ArrowRight':
+        if (!activeItem.toolLocks.offsetX) {
+          activeItem.offsetX = Math.min(TAB_CONFIGS.offsetX.max, activeItem.offsetX + step);
+          handled = true;
+        }
+        break;
+      case '+':
+      case '=':
+        if (!activeItem.toolLocks.scale) {
+          activeItem.scale = Math.min(TAB_CONFIGS.scale.max, activeItem.scale + 0.05);
+          handled = true;
+        }
+        break;
+      case '-':
+      case '_':
+        if (!activeItem.toolLocks.scale) {
+          activeItem.scale = Math.max(TAB_CONFIGS.scale.min, activeItem.scale - 0.05);
+          handled = true;
+        }
+        break;
+      case '[':
+        if (!activeItem.toolLocks.rotDeg) {
+          activeItem.rotDeg = Math.max(TAB_CONFIGS.rotDeg.min, activeItem.rotDeg - 0.5);
+          handled = true;
+        }
+        break;
+      case ']':
+        if (!activeItem.toolLocks.rotDeg) {
+          activeItem.rotDeg = Math.min(TAB_CONFIGS.rotDeg.max, activeItem.rotDeg + 0.5);
+          handled = true;
+        }
+        break;
+      case 'r':
+      case 'R':
+        resetItemToDefault(activeItem);
+        handled = true;
+        break;
+    }
+
+    if (handled) {
+      e.preventDefault();
+      renderCard(activeItem);
+      updateSliderUI();
+    }
+  });
+
+  function openAdjustPanel(item) {
+    if (activeItem && activeItem.cardElement) {
+      activeItem.cardElement.classList.remove('active-editing');
+    }
+
+    activeItem = item;
+    activeItem.cardElement.classList.add('active-editing');
+    panelTargetTitle.innerText = `Adjusting: ${item.fileName}`;
+
+    document.body.classList.add('panel-open');
+    adjustPanel.classList.remove('translate-y-full');
+
+    updateToolLockStateUI();
+    updateSliderUI();
+
+    setTimeout(() => {
+      const cardRect = item.cardElement.getBoundingClientRect();
+      const panelTop = window.innerHeight - 220;
+      if (cardRect.bottom > panelTop || cardRect.top < 60) {
+        item.cardElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }, 100);
+  }
+
+  function closeAdjustPanel() {
+    adjustPanel.classList.add('translate-y-full');
+    document.body.classList.remove('panel-open');
+    if (activeItem && activeItem.cardElement) {
+      activeItem.cardElement.classList.remove('active-editing');
+    }
+    activeItem = null;
+  }
+
+  closePanelBtn.addEventListener('click', closeAdjustPanel);
+
+  tabButtons.forEach(btn => {
+    btn.addEventListener('click', () => {
+      tabButtons.forEach(b => {
+        b.classList.remove('bg-white', 'text-sky-700', 'shadow-sm');
+        b.classList.add('text-slate-600');
+      });
+      btn.classList.add('bg-white', 'text-sky-700', 'shadow-sm');
+      btn.classList.remove('text-slate-600');
+
+      currentTab = btn.dataset.tab;
+      updateToolLockStateUI();
+      updateSliderUI();
+    });
+  });
+
+  toolLockBtn.addEventListener('click', () => {
+    if (!activeItem) return;
+    activeItem.toolLocks[currentTab] = !activeItem.toolLocks[currentTab];
+    updateToolLockStateUI();
+    updateSliderUI();
+  });
+
+  function updateToolLockStateUI() {
+    if (!activeItem) return;
+    const isLocked = activeItem.toolLocks[currentTab];
+
+    if (isLocked) {
+      toolLockBtn.className = 'flex-shrink-0 flex items-center gap-1.5 py-2 px-3 text-xs font-bold rounded-xl border transition-colors select-none bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100';
+      toolLockIcon.innerText = '🔒';
+      toolLockText.innerText = 'Locked';
+    } else {
+      toolLockBtn.className = 'flex-shrink-0 flex items-center gap-1.5 py-2 px-3 text-xs font-bold rounded-xl border transition-colors select-none bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100';
+      toolLockIcon.innerText = '🔓';
+      toolLockText.innerText = 'Unlocked';
+    }
+
+    const allLocked = Object.values(activeItem.toolLocks).every(Boolean);
+    activeItem.canvas.classList.toggle('all-locked', allLocked);
+  }
+
+  function updateSliderUI() {
+    if (!activeItem) return;
+    const conf = TAB_CONFIGS[currentTab];
+    const val = activeItem[currentTab];
+    const isLocked = activeItem.toolLocks[currentTab];
+
+    activeParamLabel.innerText = conf.label;
+    activeSlider.min = conf.min;
+    activeSlider.max = conf.max;
+    activeSlider.step = conf.step;
+    activeSlider.value = val;
+
+    activeParamVal.innerText = `${Number(val).toFixed(conf.precision)}${conf.unit}`;
+
+    activeSlider.disabled = isLocked;
+    stepDecBtn.disabled = isLocked;
+    stepIncBtn.disabled = isLocked;
+  }
+
+  activeSlider.addEventListener('input', () => {
+    if (!activeItem || activeItem.toolLocks[currentTab]) return;
+    activeItem[currentTab] = parseFloat(activeSlider.value);
+    updateSliderUI();
+    renderCard(activeItem);
+  });
+
+  stepDecBtn.addEventListener('click', () => {
+    if (!activeItem || activeItem.toolLocks[currentTab]) return;
+    const conf = TAB_CONFIGS[currentTab];
+    let nextVal = activeItem[currentTab] - conf.step;
+    nextVal = Math.max(conf.min, Math.min(conf.max, nextVal));
+    activeItem[currentTab] = nextVal;
+    updateSliderUI();
+    renderCard(activeItem);
+  });
+
+  stepIncBtn.addEventListener('click', () => {
+    if (!activeItem || activeItem.toolLocks[currentTab]) return;
+    const conf = TAB_CONFIGS[currentTab];
+    let nextVal = activeItem[currentTab] + conf.step;
+    nextVal = Math.max(conf.min, Math.min(conf.max, nextVal));
+    activeItem[currentTab] = nextVal;
+    updateSliderUI();
+    renderCard(activeItem);
+  });
+
+  function resetItemToDefault(item) {
+    item.scale = 1.0;
+    item.offsetX = 0;
+    item.offsetY = 0;
+    item.rotDeg = 0;
+    renderCard(item);
+  }
+
+  resetSingleBtn.addEventListener('click', () => {
+    if (!activeItem) return;
+    resetItemToDefault(activeItem);
+    updateSliderUI();
+    statusBar.innerText = `Reset ${activeItem.fileName} to default AI crop.`;
+  });
+
+  resetAllBtn.addEventListener('click', () => {
+    if (!items.length) return;
+    const confirmed = window.confirm("Are you sure you want to reset all photos back to their initial default AI crop?");
+    if (confirmed) {
+      items.forEach(resetItemToDefault);
+      if (activeItem) updateSliderUI();
+      statusBar.innerText = "All photos have been reset to default AI crop.";
+    }
+  });
+
+  function downloadSingleImage(item) {
+    const link = document.createElement('a');
+    const baseName = item.fileName.replace(/\.[^/.]+$/, "");
+    link.download = `${baseName}_passport.jpg`;
+    link.href = item.canvas.toDataURL('image/jpeg', 0.95);
+    link.click();
+  }
+
+  batchZipBtn.addEventListener('click', async () => {
+    if (!items.length) return;
+    const zip = new JSZip();
+    statusBar.innerText = "Packing all passport photos into ZIP archive...";
+    statusSpinner.classList.remove('hidden');
+
+    items.forEach((item) => {
+      const dataUrl = item.canvas.toDataURL('image/jpeg', 0.95);
+      const base64Data = dataUrl.split(',')[1];
+      const fileName = `${item.fileName.replace(/\.[^/.]+$/, "")}_passport.jpg`;
+      zip.file(fileName, base64Data, { base64: true });
+    });
+
+    const blob = await zip.generateAsync({ type: 'blob' });
+    const link = document.createElement('a');
+    link.download = 'passport_photos_batch.zip';
+    link.href = URL.createObjectURL(blob);
+    link.click();
+
+    statusSpinner.classList.add('hidden');
+    statusBar.innerText = "Batch ZIP archive downloaded successfully!";
+  });
+</script>
+</body>
+</html>

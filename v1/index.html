@@ -68,7 +68,7 @@
     </div>
     <h1 class="text-2xl md:text-3xl font-extrabold text-slate-900 tracking-tight">Smart Passport Studio</h1>
     <p class="text-sm md:text-base text-slate-500 mt-1 max-w-xl mx-auto">
-      Automatic shoulder-to-edge alignment, centered biometric framing, and instant batch export.
+      Automatic eye-line alignment, official biometric head proportions, and instant multi-image export.
     </p>
   </header>
 
@@ -169,7 +169,7 @@
     </div>
     <h3 class="text-sm font-bold text-slate-800">No passport photos processed</h3>
     <p class="text-xs text-slate-400 mt-1 max-w-sm">
-      Select single or multiple portrait photos above. Automatic face alignment and shoulder boundary fitting will apply instantly.
+      Select single or multiple portrait photos above. Automatic face alignment and biometric proportions will apply instantly.
     </p>
   </div>
 
@@ -236,43 +236,42 @@
 <script>
   const MODEL_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model/';
 
-  // Presets configured to align outer arm edges exactly with canvas borders:
-  // eyeYFactor: standard eye vertical placement (36-40%)
-  // shoulderSpanMul: multiplier of face-width to reach both outer arm/shoulder boundaries
+  // Standard official passport biometric ratios:
+  // Head occupies ~68-72% of photo height. Top of hair has headroom, top of shoulders visible.
   const PRESETS = {
     us: {
       w: 600,
       h: 600,
-      eyeYFactor: 0.38,
-      shoulderSpanMul: 2.85,
+      eyeYFactor: 0.45,
+      headRatio: 0.68,
       label: "US Visa / India Passport (2x2 in, 600x600 px)"
     },
     iso: {
       w: 413,
       h: 531,
-      eyeYFactor: 0.36,
-      shoulderSpanMul: 2.40,
+      eyeYFactor: 0.42,
+      headRatio: 0.70,
       label: "UK / Schengen / ISO (35x45 mm, 413x531 px)"
     },
     portrait34: {
       w: 600,
       h: 800,
-      eyeYFactor: 0.35,
-      shoulderSpanMul: 2.50,
+      eyeYFactor: 0.40,
+      headRatio: 0.65,
       label: "Portrait (3:4, 600x800 px)"
     },
     custom: {
       w: 600,
       h: 600,
-      eyeYFactor: 0.38,
-      shoulderSpanMul: 2.80,
+      eyeYFactor: 0.44,
+      headRatio: 0.68,
       label: "Custom Standard"
     }
   };
 
   const TAB_CONFIGS = {
-    scale: { label: "Zoom / Scale", min: 0.5, max: 2.2, step: 0.02, unit: "x", precision: 2 },
-    offsetY: { label: "Vertical Headroom", min: -300, max: 300, step: 2, unit: "px", precision: 0 },
+    scale: { label: "Zoom / Scale", min: 0.4, max: 2.2, step: 0.02, unit: "x", precision: 2 },
+    offsetY: { label: "Vertical Headroom", min: -250, max: 250, step: 2, unit: "px", precision: 0 },
     offsetX: { label: "Horizontal Center", min: -200, max: 200, step: 2, unit: "px", precision: 0 },
     rotDeg: { label: "Fine Tilt Angle", min: -30, max: 30, step: 0.5, unit: "°", precision: 1 }
   };
@@ -483,7 +482,7 @@
     if (selected === 'custom') {
       const cw = Math.max(100, parseInt(customWidthInput.value, 10) || 600);
       const ch = Math.max(100, parseInt(customHeightInput.value, 10) || 600);
-      return { w: cw, h: ch, eyeYFactor: 0.38, shoulderSpanMul: 2.80, label: `Custom (${cw}x${ch} px)` };
+      return { w: cw, h: ch, eyeYFactor: 0.44, headRatio: 0.68, label: `Custom (${cw}x${ch} px)` };
     }
     return PRESETS[selected];
   }
@@ -501,7 +500,7 @@
 
     let eyeMidX = item.imgElement.naturalWidth / 2;
     let eyeMidY = item.imgElement.naturalHeight * 0.4;
-    let targetBodyWidth = item.imgElement.naturalWidth * 0.9;
+    let fullHeadHeight = item.imgElement.naturalHeight * 0.55;
     item.detectedTiltAngle = 0;
 
     if (item.detectedFaces && item.detectedFaces.length > 0) {
@@ -513,12 +512,13 @@
       eyeMidX = (leftEye.x + rightEye.x) / 2;
       eyeMidY = (leftEye.y + rightEye.y) / 2;
 
-      // Calculate width across cheekbones/jaw
+      // Jaw landmark 8 is the bottom of the chin
       const jaw = landmarks.getJawOutline();
-      const faceWidth = Math.abs(jaw[16].x - jaw[0].x);
-
-      // Target body/arm span calibrated so the arms reach both side boundaries
-      targetBodyWidth = faceWidth * preset.shoulderSpanMul;
+      const chinY = jaw[8] ? jaw[8].y : face.detection.box.bottom;
+      
+      // Eye-to-chin distance is anatomically ~45% of total head height (crown to chin)
+      const eyeToChinDist = Math.max(20, chinY - eyeMidY);
+      fullHeadHeight = eyeToChinDist / 0.45;
 
       if (autoDeskewCheck.checked) {
         item.detectedTiltAngle = Math.atan2(rightEye.y - leftEye.y, rightEye.x - leftEye.x);
@@ -527,8 +527,9 @@
 
     const userRotRad = (item.rotDeg * Math.PI) / 180;
     
-    // Scale image width directly to preset canvas width so both arms touch sides
-    const scale = (preset.w / targetBodyWidth) * item.scale;
+    // Scale so full head occupies preset.headRatio (68-72%) of the frame height
+    const targetHeadHeightInCanvas = preset.h * preset.headRatio * item.scale;
+    const scale = targetHeadHeightInCanvas / fullHeadHeight;
 
     const targetEyeX = (preset.w / 2) + item.offsetX;
     const targetEyeY = (preset.h * preset.eyeYFactor) + item.offsetY;

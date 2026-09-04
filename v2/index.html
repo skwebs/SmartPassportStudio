@@ -68,11 +68,11 @@
     </div>
     <h1 class="text-2xl md:text-3xl font-extrabold text-slate-900 tracking-tight">Smart Passport Studio</h1>
     <p class="text-sm md:text-base text-slate-500 mt-1 max-w-xl mx-auto">
-      Individual arm-boundary alignment, custom per-image sizing, and instant batch export.
+      Automatic shoulder-to-edge alignment, centered biometric framing, and instant batch export.
     </p>
   </header>
 
-  <!-- Global Settings & Batch Upload Card -->
+  <!-- Global Settings Card -->
   <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 md:p-6 mb-6">
     <div class="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 items-end">
       <!-- Upload Input -->
@@ -84,28 +84,46 @@
           class="block w-full text-sm text-slate-600 file:mr-3 file:py-2 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-sky-50 file:text-sky-700 hover:file:bg-sky-100 file:cursor-pointer border border-slate-200 rounded-xl cursor-pointer bg-slate-50 focus:outline-none p-1" />
       </div>
 
-      <!-- Batch Default Standard -->
+      <!-- Preset Standard -->
       <div>
-        <label class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5" for="defaultPresetSelect">
-          Default Size For New Uploads
+        <label class="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1.5" for="presetSelect">
+          Passport Standard
         </label>
-        <select id="defaultPresetSelect" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-800 font-medium focus:ring-2 focus:ring-sky-500 focus:outline-none">
+        <select id="presetSelect" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm text-slate-800 font-medium focus:ring-2 focus:ring-sky-500 focus:outline-none">
           <option value="us">US Visa / India Passport (2x2 in, 600x600 px)</option>
           <option value="iso">UK / Schengen / ISO (35x45 mm, 413x531 px)</option>
           <option value="portrait34">Portrait Standard (3:4 Ratio, 600x800 px)</option>
+          <option value="custom">Custom Dimensions (px)...</option>
         </select>
       </div>
 
-      <!-- Global Auto Tilt Checkbox -->
+      <!-- Global Checkboxes -->
       <div class="flex items-center h-10 gap-4">
         <label class="inline-flex items-center gap-2 cursor-pointer select-none">
-          <input type="checkbox" id="globalAutoDeskew" checked class="w-4 h-4 rounded text-sky-600 focus:ring-sky-500 border-slate-300" />
+          <input type="checkbox" id="autoDeskewCheck" checked class="w-4 h-4 rounded text-sky-600 focus:ring-sky-500 border-slate-300" />
           <span class="text-sm font-medium text-slate-700">Auto Tilt Alignment</span>
         </label>
       </div>
     </div>
 
-    <!-- Status Indicator -->
+    <!-- Custom Dimension Controls -->
+    <div id="customDimensionRow" class="hidden mt-4 pt-4 border-t border-slate-100 grid grid-cols-2 md:grid-cols-4 gap-3 items-center">
+      <div>
+        <label class="block text-xs font-medium text-slate-500 mb-1" for="customWidthInput">Width (px)</label>
+        <input type="number" id="customWidthInput" value="600" min="100" max="4000" class="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-sm font-semibold text-slate-800 focus:ring-2 focus:ring-sky-500 focus:outline-none" />
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-slate-500 mb-1" for="customHeightInput">Height (px)</label>
+        <input type="number" id="customHeightInput" value="600" min="100" max="4000" class="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 text-sm font-semibold text-slate-800 focus:ring-2 focus:ring-sky-500 focus:outline-none" />
+      </div>
+      <div class="col-span-2 flex items-end">
+        <button id="applyCustomSizeBtn" class="w-full bg-slate-800 hover:bg-slate-900 text-white text-xs font-semibold py-2 px-4 rounded-lg transition-colors">
+          Apply Custom Dimensions
+        </button>
+      </div>
+    </div>
+
+    <!-- Global Status Indicator -->
     <div class="mt-4 pt-3 border-t border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-2 text-xs">
       <div class="flex items-center gap-2" id="statusContainer">
         <div id="statusSpinner" class="w-3.5 h-3.5 border-2 border-sky-600 border-t-transparent rounded-full animate-spin"></div>
@@ -126,11 +144,11 @@
 
     <!-- Global Actions -->
     <div class="flex items-center gap-2">
-      <button id="resetAllBtn" style="display: none;" class="inline-flex items-center gap-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs md:text-sm font-semibold py-2 px-3 md:px-4 rounded-xl shadow-sm transition-all transform active:scale-95" title="Reset all images back to individual auto-crop">
+      <button id="resetAllBtn" style="display: none;" class="inline-flex items-center gap-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs md:text-sm font-semibold py-2 px-3 md:px-4 rounded-xl shadow-sm transition-all transform active:scale-95" title="Reset all images back to initial AI crop">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
         </svg>
-        <span>Reset All</span>
+        <span>Reset All to Default</span>
       </button>
 
       <button id="batchZipBtn" style="display: none;" class="inline-flex items-center gap-2 bg-slate-900 hover:bg-slate-800 text-white text-xs md:text-sm font-semibold py-2 px-4 rounded-xl shadow-sm transition-all transform active:scale-95">
@@ -149,9 +167,9 @@
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
       </svg>
     </div>
-    <h3 class="text-sm font-bold text-slate-800">No photos processed yet</h3>
+    <h3 class="text-sm font-bold text-slate-800">No passport photos processed</h3>
     <p class="text-xs text-slate-400 mt-1 max-w-sm">
-      Upload portraits above. Each photo calculates individual shoulder widths so both arms touch the frame edges precisely.
+      Select single or multiple portrait photos above. Automatic face alignment and shoulder boundary fitting will apply instantly.
     </p>
   </div>
 
@@ -218,23 +236,55 @@
 <script>
   const MODEL_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model/';
 
+  // Presets configured to align outer arm edges exactly with canvas borders:
+  // eyeYFactor: standard eye vertical placement (36-40%)
+  // shoulderSpanMul: multiplier of face-width to reach both outer arm/shoulder boundaries
   const PRESETS = {
-    us: { w: 600, h: 600, eyeYFactor: 0.38, label: "US Visa (2x2 in, 600x600 px)" },
-    iso: { w: 413, h: 531, eyeYFactor: 0.36, label: "UK / Schengen (35x45 mm, 413x531 px)" },
-    portrait34: { w: 600, h: 800, eyeYFactor: 0.34, label: "Portrait 3:4 (600x800 px)" }
+    us: {
+      w: 600,
+      h: 600,
+      eyeYFactor: 0.38,
+      shoulderSpanMul: 2.85,
+      label: "US Visa / India Passport (2x2 in, 600x600 px)"
+    },
+    iso: {
+      w: 413,
+      h: 531,
+      eyeYFactor: 0.36,
+      shoulderSpanMul: 2.40,
+      label: "UK / Schengen / ISO (35x45 mm, 413x531 px)"
+    },
+    portrait34: {
+      w: 600,
+      h: 800,
+      eyeYFactor: 0.35,
+      shoulderSpanMul: 2.50,
+      label: "Portrait (3:4, 600x800 px)"
+    },
+    custom: {
+      w: 600,
+      h: 600,
+      eyeYFactor: 0.38,
+      shoulderSpanMul: 2.80,
+      label: "Custom Standard"
+    }
   };
 
   const TAB_CONFIGS = {
-    scale: { label: "Zoom / Scale", min: 0.5, max: 2.5, step: 0.02, unit: "x", precision: 2 },
+    scale: { label: "Zoom / Scale", min: 0.5, max: 2.2, step: 0.02, unit: "x", precision: 2 },
     offsetY: { label: "Vertical Headroom", min: -300, max: 300, step: 2, unit: "px", precision: 0 },
-    offsetX: { label: "Horizontal Center", min: -250, max: 250, step: 2, unit: "px", precision: 0 },
+    offsetX: { label: "Horizontal Center", min: -200, max: 200, step: 2, unit: "px", precision: 0 },
     rotDeg: { label: "Fine Tilt Angle", min: -30, max: 30, step: 0.5, unit: "°", precision: 1 }
   };
 
-  // DOM Elements
+  // Global DOM Elements
   const uploadInput = document.getElementById('uploadInput');
-  const defaultPresetSelect = document.getElementById('defaultPresetSelect');
-  const globalAutoDeskew = document.getElementById('globalAutoDeskew');
+  const presetSelect = document.getElementById('presetSelect');
+  const autoDeskewCheck = document.getElementById('autoDeskewCheck');
+  const customDimensionRow = document.getElementById('customDimensionRow');
+  const customWidthInput = document.getElementById('customWidthInput');
+  const customHeightInput = document.getElementById('customHeightInput');
+  const applyCustomSizeBtn = document.getElementById('applyCustomSizeBtn');
   const statusBar = document.getElementById('statusBar');
   const statusSpinner = document.getElementById('statusSpinner');
   const progressBarContainer = document.getElementById('progressBarContainer');
@@ -245,7 +295,7 @@
   const emptyPlaceholder = document.getElementById('emptyPlaceholder');
   const galleryGrid = document.getElementById('galleryGrid');
 
-  // Drawer Elements
+  // Bottom Adjustment Panel Elements
   const adjustPanel = document.getElementById('adjustPanel');
   const panelTargetTitle = document.getElementById('panelTargetTitle');
   const closePanelBtn = document.getElementById('closePanelBtn');
@@ -268,12 +318,12 @@
     try {
       await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
       await faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL);
-      statusBar.innerText = "AI models ready. You can now select images.";
+      statusBar.innerText = "AI models loaded. Ready for photo upload.";
       statusSpinner.classList.add('hidden');
       uploadInput.disabled = false;
     } catch (err) {
       console.error(err);
-      statusBar.innerText = "Failed loading AI models. Please refresh.";
+      statusBar.innerText = "Error loading AI models. Please check your internet connection.";
       statusSpinner.classList.add('hidden');
     }
   }
@@ -298,7 +348,7 @@
       const file = files[i];
       const progressPercent = Math.round(((i) / files.length) * 100);
       progressBarFill.style.width = `${progressPercent}%`;
-      statusBar.innerText = `Analyzing image ${i + 1} of ${files.length} (${file.name})...`;
+      statusBar.innerText = `Processing photo ${i + 1} of ${files.length} (${file.name})...`;
 
       await processUploadedFile(file, i);
     }
@@ -309,73 +359,11 @@
       statusSpinner.classList.add('hidden');
     }, 400);
 
-    statusBar.innerText = `Processed ${items.length} photo(s) with individual shoulder boundaries.`;
+    statusBar.innerText = `Processed ${items.length} photo(s) successfully.`;
     batchCountMeta.innerText = `${items.length} passport photo(s) ready`;
     batchZipBtn.style.display = items.length > 0 ? 'inline-flex' : 'none';
     resetAllBtn.style.display = items.length > 0 ? 'inline-flex' : 'none';
   });
-
-  // Calculate actual pixel width of person's torso/arms below the chin
-  function detectIndividualBodyWidth(img, landmarks, chinBottomY) {
-    try {
-      const offCanvas = document.createElement('canvas');
-      const w = img.naturalWidth;
-      const h = img.naturalHeight;
-      offCanvas.width = w;
-      offCanvas.height = h;
-      const ctx = offCanvas.getContext('2d', { willReadFrequently: true });
-      ctx.drawImage(img, 0, 0);
-
-      // Analyze background color from top corners (background wall)
-      const corner1 = ctx.getImageData(5, 5, 1, 1).data;
-      const corner2 = ctx.getImageData(w - 6, 5, 1, 1).data;
-      const bgR = (corner1[0] + corner2[0]) / 2;
-      const bgG = (corner1[1] + corner2[1]) / 2;
-      const bgB = (corner1[2] + corner2[2]) / 2;
-
-      // Scan rows across the shoulder region (20% to 35% below chin)
-      const startY = Math.min(h - 5, Math.round(chinBottomY + (h - chinBottomY) * 0.20));
-      const endY = Math.min(h - 1, Math.round(chinBottomY + (h - chinBottomY) * 0.35));
-
-      let minX = w;
-      let maxX = 0;
-      let foundPixels = 0;
-
-      for (let y = startY; y <= endY; y += 4) {
-        const rowData = ctx.getImageData(0, y, w, 1).data;
-        for (let x = 0; x < w; x += 3) {
-          const idx = x * 4;
-          const r = rowData[idx];
-          const g = rowData[idx + 1];
-          const b = rowData[idx + 2];
-
-          // Color delta relative to background wall
-          const colorDiff = Math.abs(r - bgR) + Math.abs(g - bgG) + Math.abs(b - bgB);
-          if (colorDiff > 45) { // Foreground body pixel
-            if (x < minX) minX = x;
-            if (x > maxX) maxX = x;
-            foundPixels++;
-          }
-        }
-      }
-
-      if (foundPixels > 30 && maxX > minX) {
-        return Math.max(w * 0.45, maxX - minX);
-      }
-    } catch (e) {
-      console.warn("Individual pixel scan fallback", e);
-    }
-
-    // Fallback: estimate from landmarks
-    const jaw = landmarks.getJawOutline();
-    const faceWidth = Math.abs(jaw[16].x - jaw[0].x);
-    return faceWidth * 2.85;
-  }
-
-  function getEyeCenter(points) {
-    const sum = points.reduce((acc, p) => ({ x: acc.x + p.x, y: acc.y + p.y }), { x: 0, y: 0 });
-    return { x: sum.x / points.length, y: sum.y / points.length };
-  }
 
   async function processUploadedFile(file, index) {
     return new Promise((resolve) => {
@@ -389,16 +377,13 @@
             imgElement: img,
             canvas: null,
             cardElement: null,
-            presetKey: defaultPresetSelect.value,
             scale: 1.0,
             offsetX: 0,
             offsetY: 0,
             rotDeg: 0,
-            autoDeskew: globalAutoDeskew.checked,
             toolLocks: { scale: false, offsetY: false, offsetX: false, rotDeg: false },
             detectedFaces: [],
-            detectedTiltAngle: 0,
-            bodyWidth: img.naturalWidth * 0.85
+            detectedTiltAngle: 0
           };
 
           try {
@@ -406,13 +391,6 @@
               .detectAllFaces(img, new faceapi.TinyFaceDetectorOptions({ scoreThreshold: 0.45 }))
               .withFaceLandmarks();
             item.detectedFaces = detections || [];
-
-            if (item.detectedFaces.length > 0) {
-              const face = item.detectedFaces[0];
-              const jaw = face.landmarks.getJawOutline();
-              const chinY = jaw[8] ? jaw[8].y : face.detection.box.bottom;
-              item.bodyWidth = detectIndividualBodyWidth(img, face.landmarks, chinY);
-            }
           } catch (err) {
             console.warn("Face detection fallback", err);
             item.detectedFaces = [];
@@ -429,57 +407,46 @@
     });
   }
 
+  function getEyeCenter(points) {
+    const sum = points.reduce((acc, p) => ({ x: acc.x + p.x, y: acc.y + p.y }), { x: 0, y: 0 });
+    return { x: sum.x / points.length, y: sum.y / points.length };
+  }
+
   function createCardUI(item) {
     const card = document.createElement('div');
     card.className = 'photo-card bg-white border-2 border-slate-200 rounded-2xl p-3 flex flex-col items-center relative shadow-sm';
     item.cardElement = card;
 
     const canvasWrap = document.createElement('div');
-    canvasWrap.className = 'w-full flex items-center justify-center p-1 relative rounded-xl overflow-hidden bg-slate-100/50 mb-2';
+    canvasWrap.className = 'w-full flex items-center justify-center p-1 relative rounded-xl overflow-hidden bg-slate-100/50 mb-3';
 
     const canvas = document.createElement('canvas');
     canvas.className = 'passport-canvas w-full max-w-[240px] h-auto rounded-lg shadow-sm border border-slate-200/80 bg-white';
     item.canvas = canvas;
     canvasWrap.appendChild(canvas);
 
-    // Per-image preset standard selector
-    const presetSelectWrap = document.createElement('div');
-    presetSelectWrap.className = 'w-full mb-2';
-    presetSelectWrap.innerHTML = `
-      <div class="flex items-center justify-between text-[11px] font-semibold text-slate-500 mb-1">
-        <span>Photo Size</span>
-        <span class="text-sky-700 font-bold">${item.detectedFaces.length > 0 ? 'AI Auto-Fit' : 'Manual Fit'}</span>
-      </div>
-      <select class="w-full bg-slate-50 border border-slate-200 rounded-lg px-2 py-1 text-xs text-slate-800 font-medium focus:ring-1 focus:ring-sky-500 focus:outline-none">
-        <option value="us" ${item.presetKey === 'us' ? 'selected' : ''}>US / India (2x2 in, 600x600)</option>
-        <option value="iso" ${item.presetKey === 'iso' ? 'selected' : ''}>UK / ISO (35x45 mm, 413x531)</option>
-        <option value="portrait34" ${item.presetKey === 'portrait34' ? 'selected' : ''}>Portrait 3:4 (600x800)</option>
-      </select>
-    `;
-    const cardSelect = presetSelectWrap.querySelector('select');
-    cardSelect.addEventListener('change', (e) => {
-      item.presetKey = e.target.value;
-      renderCard(item);
-      if (activeItem === item) updateSliderUI();
-    });
-
     const footer = document.createElement('div');
     footer.className = 'w-full flex flex-col gap-2';
 
     const metaRow = document.createElement('div');
-    metaRow.className = 'flex items-center justify-between text-xs text-slate-500 px-0.5';
+    metaRow.className = 'flex items-center justify-between text-xs text-slate-500 px-1';
 
     const title = document.createElement('span');
-    title.className = 'font-semibold text-slate-700 truncate max-w-[170px]';
+    title.className = 'font-semibold text-slate-700 truncate max-w-[150px]';
     title.innerText = item.fileName;
 
+    const badge = document.createElement('span');
+    badge.className = 'text-[10px] font-bold px-1.5 py-0.5 rounded bg-slate-100 text-slate-600';
+    badge.innerText = item.detectedFaces.length > 0 ? 'AI Centered' : 'Manual Crop';
+
     metaRow.appendChild(title);
+    metaRow.appendChild(badge);
 
     const btnRow = document.createElement('div');
-    btnRow.className = 'grid grid-cols-2 gap-2 mt-0.5';
+    btnRow.className = 'grid grid-cols-2 gap-2 mt-1';
 
     const downloadBtn = document.createElement('button');
-    downloadBtn.className = 'flex items-center justify-center gap-1.5 py-1.5 px-3 bg-sky-600 hover:bg-sky-700 active:bg-sky-800 text-white rounded-xl text-xs font-semibold transition-colors shadow-sm';
+    downloadBtn.className = 'flex items-center justify-center gap-1.5 py-2 px-3 bg-sky-600 hover:bg-sky-700 active:bg-sky-800 text-white rounded-xl text-xs font-semibold transition-colors shadow-sm';
     downloadBtn.innerHTML = `
       <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
@@ -489,7 +456,7 @@
     downloadBtn.onclick = () => downloadSingleImage(item);
 
     const adjustBtn = document.createElement('button');
-    adjustBtn.className = 'flex items-center justify-center gap-1.5 py-1.5 px-3 bg-slate-100 hover:bg-slate-200 active:bg-slate-300 text-slate-700 rounded-xl text-xs font-semibold transition-colors';
+    adjustBtn.className = 'flex items-center justify-center gap-1.5 py-2 px-3 bg-slate-100 hover:bg-slate-200 active:bg-slate-300 text-slate-700 rounded-xl text-xs font-semibold transition-colors';
     adjustBtn.innerHTML = `
       <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/>
@@ -505,15 +472,24 @@
     footer.appendChild(btnRow);
 
     card.appendChild(canvasWrap);
-    card.appendChild(presetSelectWrap);
     card.appendChild(footer);
     galleryGrid.appendChild(card);
 
     attachCanvasGestures(item);
   }
 
+  function getCurrentPreset() {
+    const selected = presetSelect.value;
+    if (selected === 'custom') {
+      const cw = Math.max(100, parseInt(customWidthInput.value, 10) || 600);
+      const ch = Math.max(100, parseInt(customHeightInput.value, 10) || 600);
+      return { w: cw, h: ch, eyeYFactor: 0.38, shoulderSpanMul: 2.80, label: `Custom (${cw}x${ch} px)` };
+    }
+    return PRESETS[selected];
+  }
+
   function renderCard(item) {
-    const preset = PRESETS[item.presetKey] || PRESETS.us;
+    const preset = getCurrentPreset();
     const canvas = item.canvas;
     canvas.width = preset.w;
     canvas.height = preset.h;
@@ -525,6 +501,7 @@
 
     let eyeMidX = item.imgElement.naturalWidth / 2;
     let eyeMidY = item.imgElement.naturalHeight * 0.4;
+    let targetBodyWidth = item.imgElement.naturalWidth * 0.9;
     item.detectedTiltAngle = 0;
 
     if (item.detectedFaces && item.detectedFaces.length > 0) {
@@ -536,15 +513,22 @@
       eyeMidX = (leftEye.x + rightEye.x) / 2;
       eyeMidY = (leftEye.y + rightEye.y) / 2;
 
-      if (item.autoDeskew) {
+      // Calculate width across cheekbones/jaw
+      const jaw = landmarks.getJawOutline();
+      const faceWidth = Math.abs(jaw[16].x - jaw[0].x);
+
+      // Target body/arm span calibrated so the arms reach both side boundaries
+      targetBodyWidth = faceWidth * preset.shoulderSpanMul;
+
+      if (autoDeskewCheck.checked) {
         item.detectedTiltAngle = Math.atan2(rightEye.y - leftEye.y, rightEye.x - leftEye.x);
       }
     }
 
     const userRotRad = (item.rotDeg * Math.PI) / 180;
     
-    // Scale calibrated to this specific person's body width so outer arms reach edges
-    const scale = (preset.w / item.bodyWidth) * item.scale;
+    // Scale image width directly to preset canvas width so both arms touch sides
+    const scale = (preset.w / targetBodyWidth) * item.scale;
 
     const targetEyeX = (preset.w / 2) + item.offsetX;
     const targetEyeY = (preset.h * preset.eyeYFactor) + item.offsetY;
@@ -560,14 +544,25 @@
     ctx.restore();
   }
 
-  globalAutoDeskew.addEventListener('change', () => {
-    items.forEach(it => {
-      it.autoDeskew = globalAutoDeskew.checked;
-      renderCard(it);
-    });
+  presetSelect.addEventListener('change', () => {
+    if (presetSelect.value === 'custom') {
+      customDimensionRow.classList.remove('hidden');
+    } else {
+      customDimensionRow.classList.add('hidden');
+      items.forEach(renderCard);
+    }
   });
 
-  // Touch & Mouse Gestures for individual canvas
+  applyCustomSizeBtn.addEventListener('click', () => {
+    items.forEach(renderCard);
+    statusBar.innerText = `Applied custom standard (${customWidthInput.value}x${customHeightInput.value} px).`;
+  });
+
+  autoDeskewCheck.addEventListener('change', () => {
+    items.forEach(renderCard);
+  });
+
+  // Gestures (Touch, Mouse Drag, Mouse Wheel)
   function attachCanvasGestures(item) {
     const canvas = item.canvas;
     let isDragging = false;
@@ -618,7 +613,7 @@
       isDragging = false;
     });
 
-    // Mouse wheel zoom / tilt
+    // Wheel: Alt + Wheel = Rotate | Wheel = Zoom
     canvas.addEventListener('wheel', (e) => {
       e.preventDefault();
       let changed = false;
@@ -643,7 +638,7 @@
       }
     }, { passive: false });
 
-    // Touch support (pan & pinch)
+    // Touch support (1 finger pan, 2 fingers pinch-zoom & twist-tilt)
     canvas.addEventListener('touchstart', (e) => {
       if (e.touches.length === 1) {
         if (item.toolLocks.offsetX && item.toolLocks.offsetY) return;
@@ -704,7 +699,7 @@
     });
   }
 
-  // Keyboard navigation for active photo
+  // Keyboard shortcuts
   window.addEventListener('keydown', (e) => {
     if (!activeItem) return;
     if (['INPUT', 'SELECT', 'TEXTAREA'].includes(document.activeElement.tagName)) return;
@@ -910,16 +905,16 @@
     if (!activeItem) return;
     resetItemToDefault(activeItem);
     updateSliderUI();
-    statusBar.innerText = `Reset ${activeItem.fileName} to individual auto-fit.`;
+    statusBar.innerText = `Reset ${activeItem.fileName} to default AI crop.`;
   });
 
   resetAllBtn.addEventListener('click', () => {
     if (!items.length) return;
-    const confirmed = window.confirm("Reset each photo back to its individual default auto-fit?");
+    const confirmed = window.confirm("Are you sure you want to reset all photos back to their initial default AI crop?");
     if (confirmed) {
       items.forEach(resetItemToDefault);
       if (activeItem) updateSliderUI();
-      statusBar.innerText = "All photos reset to individual auto-fit.";
+      statusBar.innerText = "All photos have been reset to default AI crop.";
     }
   });
 
@@ -934,7 +929,7 @@
   batchZipBtn.addEventListener('click', async () => {
     if (!items.length) return;
     const zip = new JSZip();
-    statusBar.innerText = "Packaging passport photos into ZIP archive...";
+    statusBar.innerText = "Packing all passport photos into ZIP archive...";
     statusSpinner.classList.remove('hidden');
 
     items.forEach((item) => {
